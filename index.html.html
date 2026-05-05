@@ -214,7 +214,7 @@ footer{font-size:10px;color:var(--gray);padding:0 0 18px;text-align:center}
 <script>
 // ══════════════════════════════════════════════════
 // ⚙️  PEGA AQUÍ TU URL DE APPS SCRIPT
-const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxXUJwisao9Csclqqb7xM-5BZHrWDP9jOrFQZJHbR35GbFiR6E48nG-LwYF1MIekhfH/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby2eejUiJkYiHyYeu9SOEeOlDj5WKKkcDL6YjHM9jEWKQdKnVPKx0VtHM5agP9Pm3da/exec";
 // ══════════════════════════════════════════════════
 
 let tipo     = "ENTRADA";
@@ -428,40 +428,70 @@ function setSt(type,msg){
 }
 
 // ── SUBMIT ────────────────────────────────────────
-async function doSubmit(){
-  const dni=document.getElementById("dni").value.trim();
-  const now=new Date();
-  const fecha=now.toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric"});
-  const hora =now.toLocaleTimeString("es-PE",{hour12:false});
+function doSubmit(){
+  const dni    = document.getElementById("dni").value.trim();
+  const now    = new Date();
+  const fecha  = now.toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const hora   = now.toLocaleTimeString("es-PE",{hour12:false});
+  const mapUrl = evMode==="gps" ? "https://www.google.com/maps?q="+gpsCoords.lat+","+gpsCoords.lng : "";
 
   document.getElementById("btn-sub").disabled=true;
   document.getElementById("spin").style.display="block";
   document.getElementById("btn-txt").textContent="Registrando...";
   setSt("load","Guardando registro...");
 
-  try{
-    const payload={
-      dni, fecha, hora, tipo,
-      evMode,
-      foto:   evMode==="foto"  ? photoB64           : null,
-      lat:    evMode==="gps"   ? gpsCoords.lat      : null,
-      lng:    evMode==="gps"   ? gpsCoords.lng      : null,
-      acc:    evMode==="gps"   ? gpsCoords.acc      : null,
-      mapUrl: evMode==="gps"   ? `https://www.google.com/maps?q=${gpsCoords.lat},${gpsCoords.lng}` : null,
-    };
+  // JSONP: bypasses CORS completely - works on all phones/browsers
+  const cbName = "cb_" + Date.now();
 
-    const res =await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-    const data=await res.json();
-    if(!data.ok)throw new Error(data.error||"Error del servidor");
-
-    if(stream)stream.getTracks().forEach(t=>t.stop());
-    showDone({fecha,hora,dni,tipo,evMode,fotoUrl:data.fotoUrl,mapUrl:payload.mapUrl});
-  }catch(err){
+  const timer = setTimeout(()=>{
+    cleanup();
     document.getElementById("spin").style.display="none";
     document.getElementById("btn-txt").textContent="Registrar Asistencia";
     document.getElementById("btn-sub").disabled=false;
-    setSt("err","⚠️ "+(err.message||"Error al registrar. Intenta de nuevo."));
+    setSt("err","Tiempo agotado. Revisa tu conexión e intenta de nuevo.");
+  }, 35000);
+
+  function cleanup(){
+    clearTimeout(timer);
+    delete window[cbName];
+    const s = document.getElementById("_jsonp");
+    if(s) s.remove();
   }
+
+  window[cbName] = function(data){
+    cleanup();
+    if(data.ok){
+      if(stream) stream.getTracks().forEach(t=>t.stop());
+      showDone({fecha,hora,dni,tipo,evMode,fotoUrl:data.fotoUrl||"",mapUrl});
+    } else {
+      document.getElementById("spin").style.display="none";
+      document.getElementById("btn-txt").textContent="Registrar Asistencia";
+      document.getElementById("btn-sub").disabled=false;
+      setSt("err","⚠️ "+(data.error||"Error al registrar. Intenta de nuevo."));
+    }
+  };
+
+  const params = new URLSearchParams({
+    callback: cbName,
+    dni, fecha, hora, tipo, evMode,
+    foto:   evMode==="foto" ? (photoB64||"") : "",
+    lat:    evMode==="gps"  ? gpsCoords.lat  : "",
+    lng:    evMode==="gps"  ? gpsCoords.lng  : "",
+    acc:    evMode==="gps"  ? String(gpsCoords.acc) : "",
+    mapUrl
+  });
+
+  const sc = document.createElement("script");
+  sc.id  = "_jsonp";
+  sc.src = SCRIPT_URL + "?" + params.toString();
+  sc.onerror = function(){
+    cleanup();
+    document.getElementById("spin").style.display="none";
+    document.getElementById("btn-txt").textContent="Registrar Asistencia";
+    document.getElementById("btn-sub").disabled=false;
+    setSt("err","No se pudo conectar. Verifica que publicaste el Apps Script como \'Cualquier persona\'.");
+  };
+  document.head.appendChild(sc);
 }
 
 // ── DONE ──────────────────────────────────────────
