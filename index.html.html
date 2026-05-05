@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asistencia — Torre de Control</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --red:     #EE2024;
+  --red-dk:  #C0181C;
+  --red-lt:  #FFF0F0;
+  --navy:    #1C2B4A;
+  --green:   #1B6B3A;
+  --grn-lt:  #E6F4EC;
+  --gray:    #5C5C5C;
+  --gray-lt: #E2E2E2;
+  --bg:      #F0F0F2;
+  --white:   #FFFFFF;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);min-height:100vh;display:flex;flex-direction:column;align-items:center}
+
+header{width:100%;background:var(--red);padding:13px 18px;display:flex;align-items:center;gap:11px;box-shadow:0 2px 10px rgba(238,32,36,.28)}
+.logo{background:white;color:var(--red);font-weight:700;font-size:11px;padding:4px 9px;border-radius:4px;flex-shrink:0}
+header h1{color:white;font-size:13px;font-weight:600;line-height:1.3;flex:1}
+#clk{color:rgba(255,255,255,.8);font-size:13px;font-variant-numeric:tabular-nums;flex-shrink:0}
+
+.card{background:var(--white);border-radius:14px;box-shadow:0 4px 22px rgba(0,0,0,.09);width:calc(100% - 28px);max-width:430px;margin:22px auto;overflow:hidden}
+.card-head{background:var(--navy);padding:17px 20px;display:flex;align-items:center;gap:12px}
+.ch-ic{width:36px;height:36px;background:var(--red);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.card-head h2{color:white;font-size:14px;font-weight:600}
+.card-head p{color:rgba(255,255,255,.5);font-size:11px;margin-top:1px}
+.body{padding:20px}
+
+/* TIPO */
+.lbl{font-size:10px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--gray);margin-bottom:7px;display:block}
+.tipo-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
+.tipo-opt{border:2px solid var(--gray-lt);border-radius:10px;padding:13px 8px;text-align:center;cursor:pointer;background:white;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;transition:all .15s}
+.tipo-opt .ti{font-size:20px;display:block;margin-bottom:4px}
+.tipo-opt .tt{font-size:12px;font-weight:700;color:var(--gray)}
+.tipo-opt.e-on{border-color:var(--green);background:var(--grn-lt)}
+.tipo-opt.e-on .tt{color:var(--green)}
+.tipo-opt.s-on{border-color:var(--red);background:var(--red-lt)}
+.tipo-opt.s-on .tt{color:var(--red-dk)}
+
+/* FIELD */
+.field{margin-bottom:18px}
+.field input{width:100%;border:2px solid var(--gray-lt);border-radius:9px;padding:13px 14px;font-size:22px;letter-spacing:5px;color:#1a1a1a;outline:none;transition:border-color .15s;text-align:center;font-family:'IBM Plex Sans',sans-serif}
+.field input:focus{border-color:var(--navy)}
+.field input.ok{border-color:var(--green);background:var(--grn-lt)}
+.field input.bad{border-color:var(--red)}
+.hint{font-size:11px;color:var(--gray);margin-top:4px;text-align:center}
+
+/* EVIDENCE TABS */
+.ev-tabs{display:flex;gap:6px;margin-bottom:12px}
+.ev-tab{flex:1;padding:9px 6px;border:2px solid var(--gray-lt);border-radius:8px;background:white;font-family:'IBM Plex Sans',sans-serif;font-size:12px;font-weight:600;color:var(--gray);cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .15s}
+.ev-tab.active{border-color:var(--navy);color:var(--navy);background:#EEF2FA}
+
+/* CAMERA */
+.cam-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#111;border-radius:10px;overflow:hidden;border:2px solid var(--gray-lt);margin-bottom:10px}
+#video{width:100%;height:100%;object-fit:cover;display:block}
+#preview{width:100%;height:100%;object-fit:cover;display:none}
+canvas{display:none}
+.cam-hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:rgba(255,255,255,.85);font-size:10px;padding:4px 12px;border-radius:20px;white-space:nowrap;pointer-events:none}
+
+.row-btns{display:flex;gap:7px;margin-bottom:4px}
+.btn-sm{flex:1;padding:10px;border-radius:8px;border:none;font-family:'IBM Plex Sans',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.btn-snap{background:var(--navy);color:white}
+.btn-snap:active{background:#243560}
+.btn-retake{background:var(--gray-lt);color:#1a1a1a;display:none}
+
+/* GPS BOX */
+.gps-box{border:2px solid var(--gray-lt);border-radius:10px;padding:14px;margin-bottom:4px;transition:border-color .2s}
+.gps-box.loading{border-color:#E65100}
+.gps-box.ready{border-color:var(--green);background:var(--grn-lt)}
+.gps-box.err{border-color:var(--red)}
+.gps-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--gray-lt)}
+.gps-row:last-child{border:none}
+.gps-row span:first-child{color:var(--gray)}
+.gps-row span:last-child{font-weight:500;color:#1a1a1a}
+.gps-row a{color:var(--red);text-decoration:none;font-weight:600}
+.gps-msg{font-size:12px;color:var(--gray);line-height:1.5}
+.gps-msg a{color:var(--red);font-weight:600}
+
+/* SUBMIT */
+.btn-main{width:100%;padding:15px;border:none;border-radius:10px;background:var(--red);color:white;font-family:'IBM Plex Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .15s;margin-top:18px}
+.btn-main:active{background:var(--red-dk)}
+.btn-main:disabled{background:var(--gray-lt);color:var(--gray);cursor:not-allowed}
+.spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:white;border-radius:50%;animation:rot .65s linear infinite;display:none;flex-shrink:0}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* STATUS */
+.st{margin-top:12px;border-radius:8px;padding:11px 13px;font-size:12.5px;font-weight:500;display:none;align-items:flex-start;gap:8px;line-height:1.5}
+.st.load{background:#EFF6FF;color:#1D4ED8;display:flex}
+.st.ok{background:var(--grn-lt);color:var(--green);display:flex}
+.st.err{background:var(--red-lt);color:var(--red-dk);display:flex}
+
+/* DONE */
+#done{display:none;padding:30px 20px;text-align:center}
+.done-ring{width:66px;height:66px;margin:0 auto 14px;background:var(--grn-lt);border:3px solid var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px}
+#done h3{font-size:18px;color:#1a1a1a;margin-bottom:5px}
+#done p{font-size:12px;color:var(--gray);line-height:1.5}
+.summ{background:var(--bg);border-radius:10px;padding:13px;margin:16px 0;text-align:left}
+.sr{display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--gray-lt)}
+.sr:last-child{border:none}
+.sr .k{color:var(--gray)}
+.sr .v{font-weight:500;color:#1a1a1a}
+.sr .v a{color:var(--red);text-decoration:none;font-weight:600}
+.btn-new{background:var(--navy);color:white;border:none;border-radius:9px;padding:11px 26px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation}
+
+footer{font-size:10px;color:var(--gray);padding:0 0 18px;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">ALICORP</div>
+  <h1>Torre de Control<br><span style="font-weight:400;opacity:.75;font-size:11px">Registro de Asistencia</span></h1>
+  <span id="clk">--:--</span>
+</header>
+
+<div class="card">
+  <div class="card-head">
+    <div class="ch-ic">📋</div>
+    <div>
+      <h2>Registrar Asistencia</h2>
+      <p>Completa los datos y adjunta evidencia</p>
+    </div>
+  </div>
+
+  <div class="body" id="form">
+
+    <!-- TIPO -->
+    <span class="lbl">Tipo de Registro</span>
+    <div class="tipo-row">
+      <div class="tipo-opt e-on" id="opt-e" onclick="setTipo('ENTRADA')">
+        <span class="ti">🟢</span><span class="tt">ENTRADA</span>
+      </div>
+      <div class="tipo-opt" id="opt-s" onclick="setTipo('SALIDA')">
+        <span class="ti">🔴</span><span class="tt">SALIDA</span>
+      </div>
+    </div>
+
+    <!-- DNI -->
+    <span class="lbl">DNI</span>
+    <div class="field">
+      <input type="text" id="dni" inputmode="numeric" maxlength="8"
+             placeholder="· · · · · · · ·" autocomplete="off" oninput="onDNI(this)">
+      <div class="hint" id="dni-hint">8 dígitos</div>
+    </div>
+
+    <!-- EVIDENCIA TABS -->
+    <span class="lbl">Evidencia</span>
+    <div class="ev-tabs">
+      <button class="ev-tab active" id="tab-foto" onclick="switchTab('foto')">📷 Foto</button>
+      <button class="ev-tab" id="tab-gps"  onclick="switchTab('gps')">📍 Ubicación GPS</button>
+    </div>
+
+    <!-- PANEL FOTO -->
+    <div id="panel-foto">
+      <div class="cam-wrap">
+        <video id="video" autoplay playsinline muted></video>
+        <canvas id="canvas"></canvas>
+        <img id="preview" alt="foto">
+        <div class="cam-hint" id="cam-hint">Apunta al escritorio con la laptop visible</div>
+      </div>
+      <div class="row-btns">
+        <button class="btn-sm btn-snap"   id="btn-snap"   onclick="snap()" style="touch-action:manipulation">📷 Tomar Foto</button>
+        <button class="btn-sm btn-retake" id="btn-retake" onclick="retake()" style="touch-action:manipulation">↩ Retomar</button>
+      </div>
+      <div class="hint" id="cam-err" style="display:none;color:#C0181C"></div>
+    </div>
+
+    <!-- PANEL GPS -->
+    <div id="panel-gps" style="display:none">
+      <div class="gps-box" id="gps-box">
+        <div class="gps-msg" id="gps-msg">
+          Toca <strong>"Obtener Ubicación"</strong> y acepta el permiso cuando el navegador lo pida.
+        </div>
+        <div id="gps-data" style="display:none">
+          <div class="gps-row"><span>Latitud</span>  <span id="g-lat">—</span></div>
+          <div class="gps-row"><span>Longitud</span> <span id="g-lng">—</span></div>
+          <div class="gps-row"><span>Precisión</span><span id="g-acc">—</span></div>
+          <div class="gps-row"><span>Ver en mapa</span><span><a id="g-map" href="#" target="_blank">Google Maps ↗</a></span></div>
+        </div>
+      </div>
+      <button class="btn-sm btn-snap" id="btn-gps" onclick="getGPS()" style="width:100%;margin-top:8px;touch-action:manipulation">
+        📍 Obtener Ubicación
+      </button>
+    </div>
+
+    <!-- SUBMIT -->
+    <button class="btn-main" id="btn-sub" onclick="doSubmit()" disabled>
+      <div class="spin" id="spin"></div>
+      <span id="btn-txt">Registrar Asistencia</span>
+    </button>
+    <div class="st" id="st"><span id="st-ic"></span><span id="st-msg"></span></div>
+  </div>
+
+  <!-- DONE -->
+  <div id="done">
+    <div class="done-ring">✓</div>
+    <h3>¡Registrado!</h3>
+    <p>Tu asistencia quedó guardada en el sistema.</p>
+    <div class="summ" id="summ"></div>
+    <button class="btn-new" onclick="doReset()">Nuevo registro</button>
+  </div>
+</div>
+
+<footer>RANSA · Torre de Control Alicorp · Asistencia</footer>
+
+<script>
+// ══════════════════════════════════════════════════
+// ⚙️  PEGA AQUÍ TU URL DE APPS SCRIPT
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxXUJwisao9Csclqqb7xM-5BZHrWDP9jOrFQZJHbR35GbFiR6E48nG-LwYF1MIekhfH/exec";
+// ══════════════════════════════════════════════════
+
+let tipo     = "ENTRADA";
+let evMode   = "foto";   // "foto" | "gps"
+let photoB64 = null;
+let gpsCoords= null;
+let stream   = null;
+
+// ── CLOCK ─────────────────────────────────────────
+setInterval(() => {
+  document.getElementById("clk").textContent =
+    new Date().toLocaleTimeString("es-PE",{hour:"2-digit",minute:"2-digit",hour12:false});
+},1000);
+
+// ── TIPO ──────────────────────────────────────────
+function setTipo(t){
+  tipo=t;
+  document.getElementById("opt-e").className="tipo-opt"+(t==="ENTRADA"?" e-on":"");
+  document.getElementById("opt-s").className="tipo-opt"+(t==="SALIDA" ?" s-on":"");
+}
+
+// ── DNI ───────────────────────────────────────────
+function onDNI(el){
+  el.value=el.value.replace(/\D/g,"").slice(0,8);
+  const ok=el.value.length===8;
+  el.className=ok?"ok":el.value.length>0?"bad":"";
+  document.getElementById("dni-hint").textContent=
+    ok?"✓ DNI válido":el.value.length>0?el.value.length+"/8 dígitos":"8 dígitos";
+  checkReady();
+}
+
+// ── TAB SWITCH ────────────────────────────────────
+function switchTab(mode){
+  evMode=mode;
+  document.getElementById("tab-foto").className="ev-tab"+(mode==="foto"?" active":"");
+  document.getElementById("tab-gps").className ="ev-tab"+(mode==="gps" ?" active":"");
+  document.getElementById("panel-foto").style.display=mode==="foto"?"block":"none";
+  document.getElementById("panel-gps").style.display =mode==="gps" ?"block":"none";
+  if(mode==="foto"&&!stream) startCam();
+  if(mode==="gps"&&!gpsCoords) getGPS();
+  checkReady();
+}
+
+// ── CAMERA ────────────────────────────────────────
+async function startCam(){
+  const err=document.getElementById("cam-err");
+  err.style.display="none";
+  try{
+    if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}
+    // Try back camera first (shows desk better), then any camera
+    const tries=[
+      {video:{facingMode:"environment"},audio:false},
+      {video:{facingMode:"user"},audio:false},
+      {video:true,audio:false}
+    ];
+    for(const c of tries){
+      try{stream=await navigator.mediaDevices.getUserMedia(c);break;}catch(e){}
+    }
+    if(!stream)throw new Error("No se encontró cámara");
+    const v=document.getElementById("video");
+    v.srcObject=stream;
+    v.onloadedmetadata=()=>v.play().catch(()=>{});
+  }catch(e){
+    err.style.display="block";
+    err.innerHTML=e.name==="NotAllowedError"
+      ?"Permiso de cámara denegado. Toca el 🔒 en la barra de URL → Cámara → Permitir → recarga."
+      :"No se pudo acceder a la cámara: "+e.message+". Usa la pestaña GPS.";
+  }
+}
+
+function snap(){
+  const v=document.getElementById("video");
+  const c=document.getElementById("canvas");
+  const p=document.getElementById("preview");
+  const dni=document.getElementById("dni").value;
+  const now=new Date();
+
+  const vw=v.videoWidth||v.offsetWidth||640;
+  const vh=v.videoHeight||v.offsetHeight||480;
+  if(vw<2||vh<2){
+    setSt("err","La cámara aún no está lista. Espera 2 segundos e intenta de nuevo.");
+    return;
+  }
+  c.width=vw; c.height=vh;
+  const ctx=c.getContext("2d");
+  ctx.drawImage(v,0,0,vw,vh);
+  // Watermark
+  const bh=Math.max(32,vh*.055);
+  ctx.fillStyle="rgba(0,0,0,.62)";
+  ctx.fillRect(0,vh-bh,vw,bh);
+  ctx.fillStyle="white";
+  ctx.font=`bold ${Math.round(bh*.44)}px monospace`;
+  ctx.fillText(`${now.toLocaleDateString("es-PE")} ${now.toLocaleTimeString("es-PE",{hour12:false})} DNI:${dni||"---"} [${tipo}]`,8,vh-bh*.15);
+
+  c.toBlob(blob=>{
+    const r=new FileReader();
+    r.onloadend=()=>{
+      photoB64=r.result.split(",")[1];
+      p.src=r.result;
+      p.style.display="block";
+      v.style.display="none";
+      document.getElementById("cam-hint").style.display="none";
+      document.getElementById("btn-snap").style.display="none";
+      document.getElementById("btn-retake").style.display="block";
+      checkReady();
+    };
+    r.readAsDataURL(blob);
+  },"image/jpeg",.82);
+}
+
+function retake(){
+  photoB64=null;
+  document.getElementById("preview").style.display="none";
+  document.getElementById("video").style.display="block";
+  document.getElementById("cam-hint").style.display="block";
+  document.getElementById("btn-snap").style.display="block";
+  document.getElementById("btn-retake").style.display="none";
+  startCam();
+  checkReady();
+}
+
+// ── GPS ───────────────────────────────────────────
+function getGPS(){
+  const box=document.getElementById("gps-box");
+  const msg=document.getElementById("gps-msg");
+  const btn=document.getElementById("btn-gps");
+  if(!navigator.geolocation){
+    box.className="gps-box err";
+    msg.innerHTML="Tu navegador no soporta GPS. Usa Chrome o Safari.";
+    return;
+  }
+  box.className="gps-box loading";
+  msg.innerHTML="⏳ Obteniendo ubicación...";
+  msg.style.display="block";
+  document.getElementById("gps-data").style.display="none";
+  btn.disabled=true;
+  btn.textContent="⏳ Esperando...";
+
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      gpsCoords={
+        lat:pos.coords.latitude.toFixed(6),
+        lng:pos.coords.longitude.toFixed(6),
+        acc:Math.round(pos.coords.accuracy)
+      };
+      box.className="gps-box ready";
+      msg.style.display="none";
+      document.getElementById("gps-data").style.display="block";
+      document.getElementById("g-lat").textContent=gpsCoords.lat;
+      document.getElementById("g-lng").textContent=gpsCoords.lng;
+      document.getElementById("g-acc").textContent="±"+gpsCoords.acc+"m";
+      const url=`https://www.google.com/maps?q=${gpsCoords.lat},${gpsCoords.lng}`;
+      document.getElementById("g-map").href=url;
+      btn.textContent="✓ Ubicación obtenida";
+      btn.disabled=true;
+      btn.style.background="var(--green)";
+      checkReady();
+    },
+    err=>{
+      box.className="gps-box err";
+      const msgs={
+        1:`Permiso denegado. <a href="#" onclick="showGPSHelp();return false">¿Cómo activarlo?</a>`,
+        2:`GPS no disponible. Activa el GPS del celular y <a href="#" onclick="resetGPS();return false">reintenta</a>.`,
+        3:`Tardó demasiado. <a href="#" onclick="resetGPS();return false">Reintentar</a>.`
+      };
+      msg.innerHTML="⚠️ "+(msgs[err.code]||`Error: ${err.message}. <a href="#" onclick="resetGPS();return false">Reintentar</a>.`);
+      msg.style.display="block";
+      btn.disabled=false;
+      btn.textContent="📍 Reintentar";
+      btn.style.background="";
+    },
+    {enableHighAccuracy:false,timeout:12000,maximumAge:30000}
+  );
+}
+
+function resetGPS(){
+  gpsCoords=null;
+  document.getElementById("btn-gps").disabled=false;
+  document.getElementById("btn-gps").textContent="📍 Obtener Ubicación";
+  document.getElementById("btn-gps").style.background="";
+  getGPS();
+}
+
+function showGPSHelp(){
+  alert(
+    "Cómo activar la ubicación:\n\n"+
+    "📱 Android (Chrome):\n"+
+    "Toca el ícono 🔒 en la barra de URL\n"+
+    "→ Permisos del sitio → Ubicación → Permitir\n\n"+
+    "🍎 iPhone (Safari):\n"+
+    "Ajustes → Privacidad → Servicios de ubicación\n"+
+    "→ Safari → Mientras se usa la app\n\n"+
+    "Luego recarga la página."
+  );
+}
+
+// ── READY ─────────────────────────────────────────
+function checkReady(){
+  const dniOk=document.getElementById("dni").value.length===8;
+  const evOk =(evMode==="foto"&&photoB64!==null)||(evMode==="gps"&&gpsCoords!==null);
+  document.getElementById("btn-sub").disabled=!(dniOk&&evOk);
+}
+
+// ── STATUS ────────────────────────────────────────
+function setSt(type,msg){
+  const el=document.getElementById("st");
+  el.className="st "+type;
+  document.getElementById("st-ic").textContent=type==="load"?"⏳":type==="ok"?"✅":"⚠️";
+  document.getElementById("st-msg").textContent=msg;
+  el.style.display="flex";
+}
+
+// ── SUBMIT ────────────────────────────────────────
+async function doSubmit(){
+  const dni=document.getElementById("dni").value.trim();
+  const now=new Date();
+  const fecha=now.toLocaleDateString("es-PE",{day:"2-digit",month:"2-digit",year:"numeric"});
+  const hora =now.toLocaleTimeString("es-PE",{hour12:false});
+
+  document.getElementById("btn-sub").disabled=true;
+  document.getElementById("spin").style.display="block";
+  document.getElementById("btn-txt").textContent="Registrando...";
+  setSt("load","Guardando registro...");
+
+  try{
+    const payload={
+      dni, fecha, hora, tipo,
+      evMode,
+      foto:   evMode==="foto"  ? photoB64           : null,
+      lat:    evMode==="gps"   ? gpsCoords.lat      : null,
+      lng:    evMode==="gps"   ? gpsCoords.lng      : null,
+      acc:    evMode==="gps"   ? gpsCoords.acc      : null,
+      mapUrl: evMode==="gps"   ? `https://www.google.com/maps?q=${gpsCoords.lat},${gpsCoords.lng}` : null,
+    };
+
+    const res =await fetch(SCRIPT_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    const data=await res.json();
+    if(!data.ok)throw new Error(data.error||"Error del servidor");
+
+    if(stream)stream.getTracks().forEach(t=>t.stop());
+    showDone({fecha,hora,dni,tipo,evMode,fotoUrl:data.fotoUrl,mapUrl:payload.mapUrl});
+  }catch(err){
+    document.getElementById("spin").style.display="none";
+    document.getElementById("btn-txt").textContent="Registrar Asistencia";
+    document.getElementById("btn-sub").disabled=false;
+    setSt("err","⚠️ "+(err.message||"Error al registrar. Intenta de nuevo."));
+  }
+}
+
+// ── DONE ──────────────────────────────────────────
+function showDone({fecha,hora,dni,tipo,evMode,fotoUrl,mapUrl}){
+  document.getElementById("form").style.display="none";
+  document.getElementById("done").style.display="block";
+  const ev=evMode==="foto"
+    ?`<div class="sr"><span class="k">Foto</span><span class="v"><a href="${fotoUrl}" target="_blank">Ver foto ↗</a></span></div>`
+    :`<div class="sr"><span class="k">Ubicación</span><span class="v"><a href="${mapUrl}" target="_blank">Ver en Maps ↗</a></span></div>`;
+  document.getElementById("summ").innerHTML=
+    `<div class="sr"><span class="k">Fecha</span><span class="v">${fecha}</span></div>
+     <div class="sr"><span class="k">Hora</span> <span class="v">${hora}</span></div>
+     <div class="sr"><span class="k">DNI</span>  <span class="v">${dni}</span></div>
+     <div class="sr"><span class="k">Tipo</span> <span class="v">${tipo}</span></div>${ev}`;
+}
+
+function doReset(){
+  document.getElementById("form").style.display="block";
+  document.getElementById("done").style.display="none";
+  document.getElementById("dni").value="";
+  document.getElementById("dni").className="";
+  document.getElementById("dni-hint").textContent="8 dígitos";
+  document.getElementById("st").style.display="none";
+  document.getElementById("spin").style.display="none";
+  document.getElementById("btn-txt").textContent="Registrar Asistencia";
+  photoB64=null; gpsCoords=null;
+  setTipo("ENTRADA");
+  switchTab("foto");
+  checkReady();
+}
+
+// ── INIT ──────────────────────────────────────────
+window.addEventListener("load",()=>startCam());
+</script>
+</body>
+</html>
